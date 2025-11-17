@@ -19,7 +19,7 @@ MoveTasker is an Android tool that watches selected folders and automatically mo
 app/
   src/
     main/
-      java/com/example/autosorter/   # Core source, features, view models, services
+      java/com/example/movetasker/   # Core source, features, view models, services
       res/                           # Android resources (layouts, icons, strings)
   build.gradle.kts                   # Module build configuration
 build.gradle.kts                     # Root Gradle setup

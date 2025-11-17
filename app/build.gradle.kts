@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.autosorter"
+    namespace = "com.example.movetasker"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.autosorter"
+        applicationId = "com.example.movetasker"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
