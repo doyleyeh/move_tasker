@@ -1,0 +1,54 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Local configuration
+local.properties
+*.iml
+.idea/
+
+# Android Studio / IntelliJ
+.DS_Store
+.classpath
+.project
+.settings/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.ap_
+*.aab
+
+# Kotlin / Java
+*.class
+*.log
+
+# Generated files
+app/build/
+*/build/
+
+# Keystore files
+*.jks
+*.keystore
+*.pem
+*.p12
+
+# Firebase / Google services
+google-services.json
+app/google-services.json
+
+# OS-specific
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Misc
+.idea_modules/
+.vscode/
+.gradle/
+*.orig
+*.rej
+
+# Jetifier
+.jetifier-cache/
