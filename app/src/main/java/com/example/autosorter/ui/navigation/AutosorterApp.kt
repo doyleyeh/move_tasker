@@ -52,6 +52,7 @@ fun MoveTaskerNavHost(
                 onViewLogs = { navController.navigate("logs") },
                 onToggleRule = { rule, enabled -> rulesViewModel.toggleRule(rule, enabled) },
                 onDeleteRule = { rulesViewModel.deleteRule(it) },
+                onRunRule = { rule, onComplete -> rulesViewModel.runRuleOnce(rule, onComplete) },
                 permissionsGranted = permissionsGranted,
                 legacyPermissionsAvailable = legacyPermissionsAvailable,
                 onRequestAllFilesPermission = onRequestAllFilesPermission,

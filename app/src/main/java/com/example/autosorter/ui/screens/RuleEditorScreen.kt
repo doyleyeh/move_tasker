@@ -22,30 +22,23 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -58,11 +51,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.example.autosorter.data.entity.FileTypeFilter
-import com.example.autosorter.data.entity.RuleEntity
 import com.example.autosorter.viewmodel.RulesViewModel
 import java.util.Locale
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,8 +68,6 @@ fun RuleEditorScreen(
     val existingRule by ruleFlow.collectAsState(initial = null)
 
     val context = LocalContext.current
-    val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
     var name by rememberSaveable { mutableStateOf(existingRule?.name ?: "") }
@@ -89,7 +78,6 @@ fun RuleEditorScreen(
     var fileType by rememberSaveable { mutableStateOf(existingRule?.fileTypeFilter ?: FileTypeFilter.IMAGE) }
     var dropdownExpanded by remember { mutableStateOf(false) }
     var textFieldSize by remember { mutableStateOf(IntSize.Zero) }
-    var isApplyingNow by rememberSaveable { mutableStateOf(false) }
 
     val sourcePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         uri?.let {
@@ -118,11 +106,8 @@ fun RuleEditorScreen(
         }
     }
 
-    val canRunNow = existingRule?.id?.let { it > 0 } == true
-
     Scaffold(
-        topBar = { TopAppBar(title = { Text(if (ruleId == null) "Add Rule" else "Edit Rule") }) },
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+        topBar = { TopAppBar(title = { Text(if (ruleId == null) "Add Rule" else "Edit Rule") }) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -130,9 +115,9 @@ fun RuleEditorScreen(
                 .padding(paddingValues)
                 .verticalScroll(scrollState)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            SectionCard(title = "Rule details") {
+            Section(title = "Rule details") {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -140,14 +125,14 @@ fun RuleEditorScreen(
                     label = { Text("Rule name") }
                 )
             }
-            SectionCard(title = "Folder locations") {
+            Section(title = "Folder locations") {
                 DirectoryField(
                     label = "Source folder path",
                     value = source,
                     onBrowse = openSourceBrowser,
                     supportingText = "Tap to pick the folder the files start in."
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 DirectoryField(
                     label = "Destination folder path",
                     value = destination,
@@ -155,7 +140,7 @@ fun RuleEditorScreen(
                     supportingText = "Where matching files should be moved."
                 )
             }
-            SectionCard(title = "File filters") {
+            Section(title = "File filters") {
                 val density = LocalDensity.current
                 ExposedDropdownMenuBox(
                     expanded = dropdownExpanded,
@@ -199,7 +184,7 @@ fun RuleEditorScreen(
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 OutlinedTextField(
                     value = extensions,
                     onValueChange = { extensions = it },
@@ -215,7 +200,7 @@ fun RuleEditorScreen(
                     }
                 )
                 if (fileType == FileTypeFilter.IMAGE || fileType == FileTypeFilter.VIDEO) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    // Spacer(modifier = Modifier.height(2.dp))
                     val normalizedExtensions = extensions
                         .split(",")
                         .map { it.trim() }
@@ -232,57 +217,38 @@ fun RuleEditorScreen(
                     )
                 }
             }
-            SectionCard(title = "Status & automation") {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                // verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Enabled", fontWeight = FontWeight.Medium)
-                        Text("Keep on to watch the folder in the background.", style = MaterialTheme.typography.bodySmall)
-                    }
+                    Text(
+                        text = "Status and Automation",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f)
+                    )
                     Switch(checked = enabled, onCheckedChange = { enabled = it })
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = {
-                        val updatedRule = existingRule?.copy(
-                            name = name.trim(),
-                            sourcePath = source.trim(),
-                            destinationPath = destination.trim(),
-                            fileTypeFilter = fileType,
-                            extensionsFilter = extensions.trim().ifEmpty { null },
-                            enabled = enabled
-                        )
-                        if (updatedRule != null) {
-                            isApplyingNow = true
-                            viewModel.runRuleOnce(updatedRule) { moved, failed ->
-                                isApplyingNow = false
-                                coroutineScope.launch {
-                                    val message = when {
-                                        moved == 0 && failed == 0 -> "No matching files found."
-                                        failed == 0 -> "Moved $moved file(s)."
-                                        else -> "Moved $moved, failed $failed."
-                                    }
-                                    snackbarHostState.showSnackbar(message)
-                                }
-                            }
-                        }
-                    },
-                    enabled = canRunNow && !isApplyingNow,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(if (isApplyingNow) "Running rule..." else "Run this rule once")
-                }
-                if (!canRunNow) {
-                    Text(
-                        text = "Save the rule first to run it on existing files.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Text(
+                    text = "Keep on to watch the folder in the background.",
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
-            SectionCard(title = "Actions") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                    onClick = onFinished,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Cancel")
+                }
                 Button(
                     onClick = {
                         viewModel.saveRule(
@@ -296,16 +262,10 @@ fun RuleEditorScreen(
                         )
                         onFinished()
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.weight(1f),
                     enabled = name.isNotBlank() && source.isNotBlank() && destination.isNotBlank()
                 ) {
                     Text("Save")
-                }
-                TextButton(
-                    onClick = onFinished,
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text("Cancel")
                 }
             }
         }
@@ -313,25 +273,20 @@ fun RuleEditorScreen(
 }
 
 @Composable
-private fun SectionCard(
+private fun Section(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Card(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            content()
-        }
+        Text(
+            title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold
+        )
+        content()
     }
 }
 

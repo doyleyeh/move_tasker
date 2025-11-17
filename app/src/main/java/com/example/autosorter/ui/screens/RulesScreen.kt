@@ -15,12 +15,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -54,6 +57,7 @@ fun RulesScreen(
     onViewLogs: () -> Unit,
     onToggleRule: (RuleEntity, Boolean) -> Unit,
     onDeleteRule: (RuleEntity) -> Unit,
+    onRunRule: (RuleEntity, (Int, Int) -> Unit) -> Unit,
     permissionsGranted: Boolean,
     legacyPermissionsAvailable: Boolean,
     onRequestAllFilesPermission: () -> Unit,
@@ -62,6 +66,7 @@ fun RulesScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     var showPermissionDialog by rememberSaveable { mutableStateOf(!permissionsGranted) }
+    var runningRuleIds by remember { mutableStateOf(setOf<Long>()) }
 
     LaunchedEffect(permissionsGranted) {
         if (!permissionsGranted) {
@@ -71,6 +76,23 @@ fun RulesScreen(
             }
         } else {
             showPermissionDialog = false
+        }
+    }
+
+    val handleRunRule: (RuleEntity) -> Unit = { rule ->
+        if (!runningRuleIds.contains(rule.id)) {
+            runningRuleIds = runningRuleIds + rule.id
+            onRunRule(rule) { moved, failed ->
+                runningRuleIds = runningRuleIds - rule.id
+                coroutineScope.launch {
+                    val message = when {
+                        moved == 0 && failed == 0 -> "No matching files found."
+                        failed == 0 -> "Moved $moved file(s)."
+                        else -> "Moved $moved, failed $failed."
+                    }
+                    snackbarHostState.showSnackbar(message)
+                }
+            }
         }
     }
 
@@ -110,41 +132,59 @@ fun RulesScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Move Automation", fontWeight = FontWeight.Bold)
-                        Text("Monitor folders in the background and move files that match your rules.")
-                        if (!permissionsGranted) {
-                            Text(
-                                "Requires storage permission before enabling.",
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
+                    Column(modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            "Move Automation",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Monitor folders in the background and move files that match your rules.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                     Switch(
                         checked = autosortEnabled,
                         onCheckedChange = handleToggle
                     )
                 }
+                if (!permissionsGranted) {
+                    Text(
+                        "Requires storage permission before enabling.",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
+            Text(
+                text = "Rules",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
 
             LazyColumn(
                 modifier = Modifier.weight(1f, fill = true),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(rules, key = { it.id }) { rule ->
+                    val isRunning = runningRuleIds.contains(rule.id)
                     RuleRow(
                         rule = rule,
+                        isRunning = isRunning,
                         onEditRule = { onEditRule(rule.id) },
                         onToggle = { enabled -> onToggleRule(rule, enabled) },
-                        onDelete = { onDeleteRule(rule) }
+                        onDelete = { onDeleteRule(rule) },
+                        onRunOnce = { handleRunRule(rule) }
                     )
                 }
             }
@@ -186,14 +226,19 @@ fun RulesScreen(
 @Composable
 private fun RuleRow(
     rule: RuleEntity,
+    isRunning: Boolean,
     onEditRule: () -> Unit,
     onToggle: (Boolean) -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onRunOnce: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onEditRule() }
+            .clickable { onEditRule() },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -205,15 +250,27 @@ private fun RuleRow(
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text("Filter: ${rule.fileTypeFilter} ${rule.extensionsFilter?.let { "($it)" } ?: ""}", style = MaterialTheme.typography.bodySmall)
+            Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = "Delete",
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.clickable { onDelete() }
-                )
+                OutlinedButton(
+                    onClick = onRunOnce,
+                    modifier = Modifier.weight(1f),
+                    enabled = !isRunning
+                ) {
+                    Text(if (isRunning) "Running..." else "Run once")
+                }
+                OutlinedButton(
+                    onClick = onDelete,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Delete")
+                }
             }
         }
     }
