@@ -335,6 +335,7 @@ private fun SectionCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DirectoryField(
     label: String,
@@ -342,21 +343,36 @@ private fun DirectoryField(
     onBrowse: () -> Unit,
     supportingText: String
 ) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = {},
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onBrowse() },
-        readOnly = true,
-        label = { Text(label) },
-        supportingText = { Text(supportingText) },
-        trailingIcon = {
-            IconButton(onClick = onBrowse) {
-                Icon(Icons.Default.Folder, contentDescription = "Browse $label")
-            }
+    // We don't actually need a real expanded state, but the Box needs one.
+    var dummyExpanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = dummyExpanded,
+        onExpandedChange = {
+            // Any tap on the whole bar comes here
+            onBrowse()
         }
-    )
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},          // read-only field
+            readOnly = true,
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth(),
+            label = { Text(label) },
+            supportingText = { Text(supportingText) },
+            trailingIcon = {
+                Icon(
+                    Icons.Default.Folder,
+                    contentDescription = "Browse $label"
+                )
+            },
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+        )
+
+        // No DropdownMenu here – we just use the box for its clickable styling.
+    }
 }
 
 private fun formatDirectoryDisplayName(uri: Uri): String {
